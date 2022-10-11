@@ -17,7 +17,6 @@ cidr_block = "172.16.1.0/25"
 #2. Create Internet Gateway
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.dev-vpc.id
-
 }
 
 # # 3. Create Custom Route Table
@@ -69,20 +68,6 @@ resource "aws_route_table_association" "a" {
   route_table_id = aws_route_table.dev-route-table.id
 }
 
-# # # 5. Associate subnet with Route Table
-# resource "aws_route_table_association" "a2" {
-#   subnet_id      = aws_subnet.public-subnet-2.id
-#   route_table_id = aws_route_table.dev-route-table.id
-# }
-
-
-# # # 5. Associate subnet with Route Table
-# resource "aws_route_table_association" "a3" {
-#   subnet_id      = aws_subnet.public-subnet-3.id
-#   route_table_id = aws_route_table.dev-route-table.id
-# }
-
-
 # # 6. Create Security Group to allow port 22,80,443
 resource "aws_security_group" "allow_web" {
   name        = "allow_web_traffic"
@@ -96,32 +81,28 @@ resource "aws_security_group" "allow_web" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   ingress {
     description = "HTTP"
-    from_port   = 80
-    to_port     = 80
+    from_port   = 8080
+    to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  ingress {
-    description = "HTTP"
-    from_port   = 3001
-    to_port     = 3001
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+
   ingress {
     description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_vpc.dev-vpc.cidr_block]
   }
 
   egress {
+    description = "Download from Internet"
     from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    to_port     = 65535
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -163,13 +144,7 @@ resource "aws_instance" "web-server-instance" {
     network_interface_id = aws_network_interface.web-server-nic[0].id
   }
 
-  #   user_data = <<-EOF
-  #                 #!/bin/bash
-  #                 sudo apt update -y
-  #                 sudo apt install apache2 -y
-  #                 sudo systemctl start apache2
-  #                 sudo bash -c 'echo your very first web server > /var/www/html/index.html'
-  #                 EOF
+    user_data = file("scripts/startup.sh")
   tags = {
     Name = "web-server"
   }
