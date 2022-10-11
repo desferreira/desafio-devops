@@ -15,7 +15,6 @@ cidr_block = "172.16.1.0/25"
 }
 
 #2. Create Internet Gateway
-
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.dev-vpc.id
 
@@ -41,91 +40,47 @@ resource "aws_route_table" "dev-route-table" {
 }
 
 # # 4. Create a Subnet1
-
-resource "aws_iam_user" "example" {
-  count = length(var.user_names)
-}
-
 resource "aws_subnet" "public-subnet" {
   count = length(var.public_subnets)
   vpc_id            = aws_vpc.dev-vpc.id
-  cidr_block = "172.16.1.0/28"
-  availability_zone = "us-east-1a"
+  cidr_block = var.public_subnets[count.index]
+  availability_zone = var.subnets_availability_zones[count.index]
 
   tags = {
-    Name = var.public_subnets[count.index]
+    Name = "public-${count.index}"
   }
 }
 
-resource "aws_subnet" "public-subnet-2" {
+resource "aws_subnet" "private-subnet" {
+  count = length(var.private_subnets)
   vpc_id            = aws_vpc.dev-vpc.id
-  cidr_block = "172.16.1.16/28"
-  availability_zone = "us-east-1b"
+  cidr_block = var.private_subnets[count.index]
+  availability_zone = var.subnets_availability_zones[count.index]
 
   tags = {
-    Name = "dev-subnet2"
+    Name = "private-${count.index}"
   }
 }
-
-resource "aws_subnet" "public-subnet-3" {
-  vpc_id            = aws_vpc.dev-vpc.id
-  cidr_block = "172.16.1.32/28"
-  availability_zone = "us-east-1c"
-
-  tags = {
-    Name = "dev-subnet3"
-  }
-}
-
-resource "aws_subnet" "private-subnet-1" {
-  vpc_id            = aws_vpc.dev-vpc.id
-  cidr_block = "172.16.1.48/28"
-  availability_zone = "us-east-1c"
-
-  tags = {
-    Name = "dev-subnet3"
-  }
-}
-
-resource "aws_subnet" "private-subnet-2" {
-  vpc_id            = aws_vpc.dev-vpc.id
-  cidr_block = "172.16.1.64/28"
-  availability_zone = "us-east-1c"
-
-  tags = {
-    Name = "dev-subnet3"
-  }
-}
-
-resource "aws_subnet" "private-subnet-3" {
-  vpc_id            = aws_vpc.dev-vpc.id
-  cidr_block = "172.16.1.80/28"
-  availability_zone = "us-east-1c"
-
-  tags = {
-    Name = "dev-subnet3"
-  }
-}
-
 
 # # 5. Associate subnet with Route Table
 resource "aws_route_table_association" "a" {
-  subnet_id      = aws_subnet.public-subnet-1.id
+  count = length(var.public_subnets)
+  subnet_id      = aws_subnet.public-subnet[count.index].id
   route_table_id = aws_route_table.dev-route-table.id
 }
 
-# # 5. Associate subnet with Route Table
-resource "aws_route_table_association" "a2" {
-  subnet_id      = aws_subnet.public-subnet-2.id
-  route_table_id = aws_route_table.dev-route-table.id
-}
+# # # 5. Associate subnet with Route Table
+# resource "aws_route_table_association" "a2" {
+#   subnet_id      = aws_subnet.public-subnet-2.id
+#   route_table_id = aws_route_table.dev-route-table.id
+# }
 
 
-# # 5. Associate subnet with Route Table
-resource "aws_route_table_association" "a3" {
-  subnet_id      = aws_subnet.public-subnet-3.id
-  route_table_id = aws_route_table.dev-route-table.id
-}
+# # # 5. Associate subnet with Route Table
+# resource "aws_route_table_association" "a3" {
+#   subnet_id      = aws_subnet.public-subnet-3.id
+#   route_table_id = aws_route_table.dev-route-table.id
+# }
 
 
 # # 6. Create Security Group to allow port 22,80,443
@@ -177,19 +132,8 @@ resource "aws_security_group" "allow_web" {
 
 # # 7. Create a network interface with an ip in the subnet that was created in step 4
 resource "aws_network_interface" "web-server-nic" {
-  subnet_id       = aws_subnet.public-subnet-1.id
-  security_groups = [aws_security_group.allow_web.id]
-
-}
-
-resource "aws_network_interface" "web-server-nic2" {
-  subnet_id       = aws_subnet.public-subnet-1.id
-  security_groups = [aws_security_group.allow_web.id]
-
-}
-
-resource "aws_network_interface" "web-server-nic3" {
-  subnet_id       = aws_subnet.public-subnet-2.id
+  count = length(var.public_subnets)
+  subnet_id       = aws_subnet.public-subnet[count.index].id
   security_groups = [aws_security_group.allow_web.id]
 
 }
@@ -197,7 +141,7 @@ resource "aws_network_interface" "web-server-nic3" {
 # # 8. Assign an elastic IP to the network interface created in step 7
 resource "aws_eip" "one" {
   vpc                       = true
-  network_interface         = aws_network_interface.web-server-nic.id
+  network_interface         = aws_network_interface.web-server-nic[0].id
   depends_on                = [aws_internet_gateway.gw]
 }
 
@@ -216,7 +160,7 @@ resource "aws_instance" "web-server-instance" {
 
   network_interface {
     device_index         = 0
-    network_interface_id = aws_network_interface.web-server-nic.id
+    network_interface_id = aws_network_interface.web-server-nic[0].id
   }
 
   #   user_data = <<-EOF
