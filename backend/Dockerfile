@@ -6,10 +6,10 @@ COPY ./scripts .
 RUN apt-get update -y && apt-get upgrade -y && apt-get install vim rpm -y
 RUN mvn install compile
 
-FROM openjdk:8u201-jre-alpine3.9 as runner
+FROM adoptopenjdk/openjdk11:x86_64-alpine-jre-11.0.5_10 as runner
 WORKDIR /app
 COPY --from=builder /build/target/letscodebyada-0.0.1-SNAPSHOT.jar app.jar
-COPY --from=builder /build/scripts/startup.sh startup.sh
+COPY --from=builder /build/startup.sh startup.sh
 
 
 EXPOSE 8080

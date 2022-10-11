@@ -13,3 +13,18 @@ variable "subnets_availability_zones" {
   type = list
   default = ["us-east-1a", "us-east-1b", "us-east-1c"]
 }
+
+variable "db_name" {
+  type = string
+  default = "letscode_db"
+}
+
+variable "db_user" {
+  type = string
+  default = "letscode"
+}
+
+variable "db_password" {
+  type = string
+  default = "pass123"
+}

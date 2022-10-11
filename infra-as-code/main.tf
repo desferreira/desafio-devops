@@ -14,6 +14,16 @@ cidr_block = "172.16.1.0/25"
   }
 }
 
+resource "aws_default_subnet" "default_subnet" {
+  availability_zone = "us-east-1a"
+  tags = {
+    Name = "Default subnet for us-east-1a"
+  }
+  depends_on = [
+    aws_vpc.dev-vpc
+  ]
+}
+
 #2. Create Internet Gateway
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.dev-vpc.id
@@ -132,7 +142,7 @@ resource "aws_key_pair" "deployer" {
   public_key = file("~/.ssh/id_rsa.pub")
 }
 
-# # 9. Create Ubuntu server
+# # 9. Create Centos server
 resource "aws_instance" "web-server-instance" {
   ami               = "ami-06640050dc3f556bb" # Ubuntu 18.04
   instance_type     = "t2.micro"
@@ -150,15 +160,51 @@ resource "aws_instance" "web-server-instance" {
   }
 }
 
+# 10. Create Security Group for database
+resource "aws_security_group" "allow_db" {
+  name        = "allow_db_traffic"
+  description = "Allow DB inbound traffic"
+  vpc_id      = aws_vpc.dev-vpc.id
+
+  ingress {
+    description = "db_access"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "allow_db"
+  }
+}
+
+# 11. Create database
+resource "aws_db_instance" "default" {
+  allocated_storage    = 10
+  db_name              = var.db_name
+  engine               = "mysql"
+  engine_version       = "5.7"
+  instance_class       = "db.t3.micro"
+  username             = var.db_user
+  password             = var.db_password
+  parameter_group_name = "default.mysql5.7"
+  skip_final_snapshot  = true
+  vpc_security_group_ids = [aws_security_group.allow_db.id]
+}
+
 output "server_public_ip" {
   value = aws_eip.one
 }
 
 output "server_private_ip" {
   value = aws_instance.web-server-instance.private_ip
-
 }
 
 output "server_id" {
   value = aws_instance.web-server-instance.id
+}
+
+output "db_url" {
+  value = aws_db_instance.default.address 
 }
