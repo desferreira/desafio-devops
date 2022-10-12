@@ -7,6 +7,13 @@ terraform {
 }
 
 # # 1. Create vpc
+
+resource "aws_default_vpc" "default-vpc" {
+  tags = {
+    Name = "default_vpc"
+  }
+}
+
 resource "aws_vpc" "dev-vpc" {
 cidr_block = "172.16.1.0/25"
   tags = {
@@ -164,7 +171,7 @@ resource "aws_instance" "web-server-instance" {
 resource "aws_security_group" "allow_db" {
   name        = "allow_db_traffic"
   description = "Allow DB inbound traffic"
-  vpc_id      = aws_vpc.dev-vpc.id
+  vpc_id      = aws_default_vpc.default-vpc.id
 
   ingress {
     description = "db_access"

@@ -26,5 +26,5 @@ variable "db_user" {
 
 variable "db_password" {
   type = string
-  default = "pass123"
+  default = "7ROtBB44*0XN"
 }
