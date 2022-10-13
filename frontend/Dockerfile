@@ -8,3 +8,5 @@ FROM nginx:alpine as runner
 COPY --from=builder /app/dist/letscodebyada-app /usr/share/nginx/html
 
 EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

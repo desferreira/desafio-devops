@@ -7,28 +7,11 @@ terraform {
 }
 
 # 1. Create vpc
-
-resource "aws_default_vpc" "default-vpc" {
-  tags = {
-    Name = "default_vpc"
-  }
-}
-
 resource "aws_vpc" "dev-vpc" {
 cidr_block = "172.16.1.0/25"
   tags = {
     Name = "dev"
   }
-}
-
-resource "aws_default_subnet" "default_subnet" {
-  availability_zone = "us-east-1a"
-  tags = {
-    Name = "Default subnet for us-east-1a"
-  }
-  depends_on = [
-    aws_vpc.dev-vpc
-  ]
 }
 
 # 2. Create Internet Gateway
@@ -134,7 +117,6 @@ resource "aws_network_interface" "web-server-nic" {
   count = length(var.public_subnets)
   subnet_id       = aws_subnet.public-subnet[count.index].id
   security_groups = [aws_security_group.allow_web.id]
-
 }
 
 # 8. Assign an elastic IP to the network interface created in step 7
@@ -172,7 +154,7 @@ resource "aws_instance" "web-server-instance" {
 resource "aws_security_group" "allow_db" {
   name        = "allow_db_traffic"
   description = "Allow DB inbound traffic"
-  vpc_id      = aws_default_vpc.default-vpc.id
+  vpc_id      = aws_vpc.dev-vpc.id
 
   ingress {
     description = "db_access"
@@ -185,9 +167,23 @@ resource "aws_security_group" "allow_db" {
   tags = {
     Name = "allow_db"
   }
+
+  depends_on = [
+    aws_vpc.dev-vpc
+  ]
 }
 
 # 11. Create database
+
+resource "aws_db_subnet_group" "default" {
+  name       = "main"
+  subnet_ids = [aws_subnet.public-subnet[0].id, aws_subnet.public-subnet[1].id]
+
+  tags = {
+    Name = "letscode-db-subnet-group"
+  }
+}
+
 resource "aws_db_instance" "default" {
   allocated_storage    = 10
   db_name              = var.db_name
@@ -199,6 +195,7 @@ resource "aws_db_instance" "default" {
   parameter_group_name = "default.mysql5.7"
   skip_final_snapshot  = true
   vpc_security_group_ids = [aws_security_group.allow_db.id]
+  db_subnet_group_name = aws_db_subnet_group.default.name
 }
 
 # 12. Create s3 bucket
@@ -239,7 +236,7 @@ resource "aws_s3_bucket_cors_configuration" "website" {
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["PUT", "POST"]
-    allowed_origins = ["https://s3-website-test.hashicorp.com"]
+    allowed_origins = ["*"]
     expose_headers  = ["ETag"]
     max_age_seconds = 3000
   }
