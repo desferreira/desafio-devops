@@ -141,7 +141,7 @@ resource "aws_network_interface" "web-server-nic" {
 resource "aws_eip" "one" {
   vpc                       = true
   network_interface         = aws_network_interface.web-server-nic[0].id
-  depends_on                = [aws_internet_gateway.gw]
+  depends_on                = [aws_internet_gateway.gw, aws_instance.web-server-instance]
 }
 
 

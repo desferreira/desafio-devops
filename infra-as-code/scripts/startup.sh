@@ -14,10 +14,21 @@ sudo yum-config-manager \
 sudo yum install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
 sudo systemctl start docker
 
-# Pull docker images
-docker pull dig0w/letscode_fe
-docker pull dig0w/letscode_be
+# Install kubectl
+cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+sudo yum install -y kubectl
 
-# Running docker images
-docker run -p 80:80 dig0w/letscode_fe
-docker run -p 8080:8080 -p 443:443 -e MYSQL_DB_HOST=MYSQL_DB_HOST -e MYSQL_DB_USER=letscode -e MYSQL_DB_PASS="7ROtBB44*0XN" dig0w/letscode_be
+# Install Kind
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.16.0/kind-linux-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
+
+# Launch cluster
+kind create cluster --name letscodebyadak8s
