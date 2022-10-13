@@ -15,6 +15,13 @@ spec:
       containers:
       - name: letscode-backend
         image: dig0w/letscode_be
+        env:
+        - name: MYSQL_DB_HOST
+          value: MY_DB_URL #change it
+        - name: MYSQL_DB_USER
+          value: MYUSER #change it
+        - name: MYSQL_DB_PASSWORD
+          value: MYPASS #change it
         ports:
         - containerPort: 8080
 ---
