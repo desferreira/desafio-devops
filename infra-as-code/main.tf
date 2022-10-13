@@ -6,7 +6,7 @@ terraform {
   }
 }
 
-# # 1. Create vpc
+# 1. Create vpc
 
 resource "aws_default_vpc" "default-vpc" {
   tags = {
@@ -31,7 +31,7 @@ resource "aws_default_subnet" "default_subnet" {
   ]
 }
 
-#2. Create Internet Gateway
+# 2. Create Internet Gateway
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.dev-vpc.id
 }
@@ -55,7 +55,7 @@ resource "aws_route_table" "dev-route-table" {
   }
 }
 
-# # 4. Create a Subnet1
+# 4. Create a Public Subnet
 resource "aws_subnet" "public-subnet" {
   count = length(var.public_subnets)
   vpc_id            = aws_vpc.dev-vpc.id
@@ -67,6 +67,7 @@ resource "aws_subnet" "public-subnet" {
   }
 }
 
+# 4.1 Create Private Subnet
 resource "aws_subnet" "private-subnet" {
   count = length(var.private_subnets)
   vpc_id            = aws_vpc.dev-vpc.id
@@ -78,14 +79,14 @@ resource "aws_subnet" "private-subnet" {
   }
 }
 
-# # 5. Associate subnet with Route Table
+# 5. Associate subnet with Route Table
 resource "aws_route_table_association" "a" {
   count = length(var.public_subnets)
   subnet_id      = aws_subnet.public-subnet[count.index].id
   route_table_id = aws_route_table.dev-route-table.id
 }
 
-# # 6. Create Security Group to allow port 22,80,443
+# 6. Create Security Group to allow port 22,80,443
 resource "aws_security_group" "allow_web" {
   name        = "allow_web_traffic"
   description = "Allow Web inbound traffic"
@@ -128,7 +129,7 @@ resource "aws_security_group" "allow_web" {
   }
 }
 
-# # 7. Create a network interface with an ip in the subnet that was created in step 4
+# 7. Create a network interface with an ip in the subnet that was created in step 4
 resource "aws_network_interface" "web-server-nic" {
   count = length(var.public_subnets)
   subnet_id       = aws_subnet.public-subnet[count.index].id
@@ -136,7 +137,7 @@ resource "aws_network_interface" "web-server-nic" {
 
 }
 
-# # 8. Assign an elastic IP to the network interface created in step 7
+# 8. Assign an elastic IP to the network interface created in step 7
 resource "aws_eip" "one" {
   vpc                       = true
   network_interface         = aws_network_interface.web-server-nic[0].id
@@ -149,7 +150,7 @@ resource "aws_key_pair" "deployer" {
   public_key = file("~/.ssh/id_rsa.pub")
 }
 
-# # 9. Create Centos server
+# 9. Create Centos server
 resource "aws_instance" "web-server-instance" {
   ami               = "ami-06640050dc3f556bb" # Ubuntu 18.04
   instance_type     = "t2.micro"
@@ -200,12 +201,58 @@ resource "aws_db_instance" "default" {
   vpc_security_group_ids = [aws_security_group.allow_db.id]
 }
 
-output "server_public_ip" {
-  value = aws_eip.one
+# 12. Create s3 bucket
+
+resource "aws_s3_bucket" "website" {
+  bucket = "letscodewebapp"
 }
 
-output "server_private_ip" {
-  value = aws_instance.web-server-instance.private_ip
+resource "aws_s3_bucket_acl" "example_bucket_acl" {
+  bucket = aws_s3_bucket.website.id
+  acl    = "public-read"
+}
+
+resource "aws_s3_bucket_website_configuration" "website" {
+  bucket = aws_s3_bucket.website.bucket
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  error_document {
+    key = "error.html"
+  }
+
+  routing_rule {
+    condition {
+      key_prefix_equals = "docs/"
+    }
+    redirect {
+      replace_key_prefix_with = "documents/"
+    }
+  }
+}
+
+resource "aws_s3_bucket_cors_configuration" "website" {
+  bucket = aws_s3_bucket.website.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["PUT", "POST"]
+    allowed_origins = ["https://s3-website-test.hashicorp.com"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+
+  cors_rule {
+    allowed_methods = ["GET"]
+    allowed_origins = ["*"]
+  }
+}
+
+
+output "server_public_ip" {
+  value = aws_eip.one.public_ip
 }
 
 output "server_id" {
@@ -214,4 +261,8 @@ output "server_id" {
 
 output "db_url" {
   value = aws_db_instance.default.address 
+}
+
+output "s3_bucket_address" {
+  value = aws_s3_bucket.website.website_endpoint
 }
